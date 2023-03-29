@@ -1,0 +1,69 @@
+/* button {
+  padding: 10px 20px;
+  border: 1px solid #ddd;
+  color: #333;
+  background-color: #fff;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: '微软雅黑', sans-serif;
+  cursor: pointer;
+
+  &[disabled] {
+    cursor: not-allowed;
+  }
+
+  &.danger {
+    background-color: #ff4949;
+    color: #fff;
+  }
+
+  &.success {
+    background-color: #13ce66;
+    color: #fff;
+  }
+
+  &.info {
+    background-color: #50bfff;
+    color: #fff;
+  }
+} */
+
+button {
+  padding: 10px 20px;
+  border: 1px solid #ddd;
+  color: #333;
+  background-color: #fff;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: '微软雅黑', sans-serif;
+  cursor: pointer;
+}
+
+button.success {
+  background-color: #13ce66;
+  color: #fff;
+}
+
+button.danger {
+  background-color: #ff4949;
+  color: #fff;
+}
+
+button.info {
+  background-color: #50bfff;
+  color: #fff;
+}
+
+button.vigilant {
+  background-color: #d7580f;
+  color: #fff;
+}
+
+button.disable {
+  background-color: #555;
+  color: #ccc;
+}
+
+button[disabled] {
+  cursor: not-allowed;
+}
