@@ -1,10 +1,22 @@
 <template>
   <div>
-    <button :class="zhManClass" @click="changeVoice($event, voiceConfig.zhMan.id)">
-      {{ voiceConfig.zhMan.name }}
+    <button :class="enWomenClass" @click="changeVoice($event, voiceConfig.enWomen)">
+      {{ voiceConfig.enWomen.name }}
     </button>
-    <button :class="zhWomenClass" @click="changeVoice($event, voiceConfig.zhWomen.id)">
+    <button :class="enManClass" @click="changeVoice($event, voiceConfig.enMan)">
+      {{ voiceConfig.enMan.name }}
+    </button>
+    <button :class="jpWomenClass" @click="changeVoice($event, voiceConfig.jpWomen)">
+      {{ voiceConfig.jpWomen.name }}
+    </button>
+    <button :class="jpManClass" @click="changeVoice($event, voiceConfig.jpMan)">
+      {{ voiceConfig.jpMan.name }}
+    </button>
+    <button :class="zhWomenClass" @click="changeVoice($event, voiceConfig.zhWomen)">
       {{ voiceConfig.zhWomen.name }}
+    </button>
+    <button :class="zhManClass" @click="changeVoice($event, voiceConfig.zhMan)">
+      {{ voiceConfig.zhMan.name }}
     </button>
   </div>
   <div>
@@ -23,92 +35,145 @@
 import axios from 'axios'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
 
-type prerequisite = {
-  token: string
-  region: string
+const speechKey = ''
+const speechRegion = 'eastus'
+type MsVoice = {
+  id: number
+  name: string
+  cloudFullName: string
+  class: string
 }
+
+async function getToken(): Promise<string> {
+  const headers = {
+    headers: {
+      'Ocp-Apim-Subscription-Key': speechKey,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  }
+  try {
+    const tokenRes = await axios.post(
+      `https://${speechRegion}.api.cognitive.microsoft.com/sts/v1.0/issueToken`,
+      null,
+      headers,
+    )
+    return tokenRes.data as string
+  } catch (err) {
+    window.console.log('authorization failed')
+    throw err
+  }
+}
+
 export default {
   name: 'TtsButtonSet',
   data() {
     return {
       buttonPlay: {
-        text: 'Play',
+        text: '▶️ Play',
         class: 'success',
         disabled: false,
       },
       buttonPause: {
-        text: 'Pause',
+        text: '⏸️ Pause',
         class: 'disable',
         disabled: true,
       },
       buttonResume: {
-        text: 'Resume',
+        text: '⏯️ Resume',
         class: 'disable',
         disabled: true,
       },
       buttonDownload: {
-        text: 'Download',
+        text: '💾 Download',
         class: 'info',
         disabled: false,
       },
       voiceConfig: {
         zhMan: {
           id: 1,
-          name: '云泽',
+          name: '普通话：云泽',
+          cloudFullName: 'Microsoft Server Speech Text to Speech Voice (zh-CN, YunzeNeural)',
           class: 'disable',
-        },
+        } as MsVoice,
         zhWomen: {
           id: 2,
-          name: '晓晓',
+          name: '普通话：晓晓',
+          cloudFullName: 'Microsoft Server Speech Text to Speech Voice (zh-CN, XiaoxiaoNeural)',
           class: 'disable',
-        },
+        } as MsVoice,
+        jpMan: {
+          id: 3,
+          name: '日本語：直樹',
+          cloudFullName: 'Microsoft Server Speech Text to Speech Voice (ja-JP, NaokiNeural)',
+          class: 'disable',
+        } as MsVoice,
+        jpWomen: {
+          id: 4,
+          name: '日本語：真弓',
+          cloudFullName: 'Microsoft Server Speech Text to Speech Voice (ja-JP, MayuNeural)',
+          class: 'disable',
+        } as MsVoice,
+        enWomen: {
+          id: 5,
+          name: 'english: Aria',
+          cloudFullName: 'Microsoft Server Speech Text to Speech Voice (en-US, AriaNeural)',
+          class: 'disable',
+        } as MsVoice,
+        enMan: {
+          id: 6,
+          name: 'english: Guy',
+          cloudFullName: 'Microsoft Server Speech Text to Speech Voice (en-US, GuyNeural)',
+          class: 'disable',
+        } as MsVoice,
       },
-      tokenRegion: {} as prerequisite,
+      token: undefined as undefined | string,
       player: {} as sdk.SpeakerAudioDestination,
-      activeVoiceButtonId: 0,
+      activeVoice: {} as MsVoice,
     }
   },
   computed: {
+    enManClass() {
+      return this.voiceConfig.enMan.id === this.activeVoice.id ? 'vigilant' : 'disable'
+    },
+    enWomenClass() {
+      return this.voiceConfig.enWomen.id === this.activeVoice.id ? 'vigilant' : 'disable'
+    },
     zhManClass() {
-      return this.voiceConfig.zhMan.id === this.activeVoiceButtonId ? 'vigilant' : 'disable'
+      return this.voiceConfig.zhMan.id === this.activeVoice.id ? 'vigilant' : 'disable'
     },
     zhWomenClass() {
-      return this.voiceConfig.zhWomen.id === this.activeVoiceButtonId ? 'vigilant' : 'disable'
+      return this.voiceConfig.zhWomen.id === this.activeVoice.id ? 'vigilant' : 'disable'
+    },
+    jpManClass() {
+      return this.voiceConfig.jpMan.id === this.activeVoice.id ? 'vigilant' : 'disable'
+    },
+    jpWomenClass() {
+      return this.voiceConfig.jpWomen.id === this.activeVoice.id ? 'vigilant' : 'disable'
     },
   },
+  beforeMount() {
+    this.activeVoice = this.voiceConfig.enWomen
+  },
   methods: {
-    changeVoice(_: MouseEvent, o: number) {
-      this.activeVoiceButtonId = o
+    changeVoice(_: MouseEvent, o: MsVoice) {
+      this.activeVoice = o
     },
-    async prepare(): Promise<prerequisite> {
-      const authorizationEndpoint = 'http://localhost:3001/api/get-speech-token'
-      try {
-        const res = await axios.get(authorizationEndpoint)
-        const { token, region } = res.data
-        return { token, region }
-      } catch (err) {
-        window.console.log('authorization failed')
-        throw err
+    async speechPrepare(type: 'play' | 'download'): Promise<sdk.SpeechSynthesizer> {
+      if (!this.token) {
+        this.token = await getToken()
       }
-    },
-    async play() {
-      window.console.log('start play')
-      if (!this.tokenRegion.token || !this.tokenRegion.region) {
-        this.tokenRegion = await this.prepare()
-      }
-      const speechConfig = sdk.SpeechConfig.fromAuthorizationToken(this.tokenRegion.token, this.tokenRegion.region)
-      if (!speechConfig) {
-        window.console.log('speechConfig is nothing,something go wrong!')
-        return
-      }
-      // speechConfig.speechSynthesisVoiceName = 'Microsoft Server Speech Text to Speech Voice (zh-CN, YunzeNeural)'
-      speechConfig.speechSynthesisVoiceName = 'Microsoft Server Speech Text to Speech Voice (zh-CN, XiaoxiaoNeural)'
-      // speechConfig.speechSynthesisVoiceName = 'Microsoft Server Speech Text to Speech Voice (ja-JP, MayuNeural)'
-      // speechConfig.speechSynthesisVoiceName = 'Microsoft Server Speech Text to Speech Voice (ja-JP, NaokiNeural)'
+      const speechConfig = sdk.SpeechConfig.fromAuthorizationToken(this.token, speechRegion)
+      speechConfig.speechSynthesisVoiceName = this.activeVoice.cloudFullName
       speechConfig.speechSynthesisOutputFormat = sdk.SpeechSynthesisOutputFormat.Audio48Khz96KBitRateMonoMp3
       this.player = new sdk.SpeakerAudioDestination()
       const audioConfig = sdk.AudioConfig.fromSpeakerOutput(this.player)
-      let synthesizer: sdk.SpeechSynthesizer | undefined = new sdk.SpeechSynthesizer(speechConfig, audioConfig)
+      if (type === 'play') return new sdk.SpeechSynthesizer(speechConfig, audioConfig)
+      if (type === 'download') return new sdk.SpeechSynthesizer(speechConfig, null)
+      return new sdk.SpeechSynthesizer(speechConfig, audioConfig)
+    },
+    async play() {
+      window.console.log('start play')
+      const synthesizer = await this.speechPrepare('play')
       this.player.onAudioStart = () => {
         window.console.log('Audio Start')
       }
@@ -125,12 +190,9 @@ export default {
       }
       function completeCb() {
         synthesizer && synthesizer.close()
-        synthesizer = undefined
       }
-      function errCb(err: string) {
-        window.console.log(err)
+      function errCb() {
         synthesizer && synthesizer.close()
-        synthesizer = undefined
       }
       synthesizer.speakTextAsync(kintone.app.record.get().record.myspeech.value, completeCb, errCb)
       synthesizer.synthesisStarted = () => {
@@ -164,20 +226,7 @@ export default {
     },
     async download() {
       window.console.log('start download')
-      if (!this.tokenRegion.token || !this.tokenRegion.region) {
-        this.tokenRegion = await this.prepare()
-      }
-      const speechConfig = sdk.SpeechConfig.fromAuthorizationToken(this.tokenRegion.token, this.tokenRegion.region)
-      if (!speechConfig) {
-        window.console.log('speechConfig is nothing,something go wrong!')
-        return
-      }
-      // speechConfig.speechSynthesisVoiceName = 'Microsoft Server Speech Text to Speech Voice (zh-CN, YunzeNeural)'
-      speechConfig.speechSynthesisVoiceName = 'Microsoft Server Speech Text to Speech Voice (zh-CN, XiaoxiaoNeural)'
-      // speechConfig.speechSynthesisVoiceName = 'Microsoft Server Speech Text to Speech Voice (ja-JP, MayuNeural)'
-      // speechConfig.speechSynthesisVoiceName = 'Microsoft Server Speech Text to Speech Voice (ja-JP, NaokiNeural)'
-      speechConfig.speechSynthesisOutputFormat = sdk.SpeechSynthesisOutputFormat.Audio48Khz96KBitRateMonoMp3
-      let synthesizer: sdk.SpeechSynthesizer | undefined = new sdk.SpeechSynthesizer(speechConfig, null)
+      const synthesizer = await this.speechPrepare('download')
       synthesizer.speakTextAsync(kintone.app.record.get().record.myspeech.value)
       this.buttonDownload.disabled = true
       this.buttonDownload.class = 'disable'
@@ -185,7 +234,6 @@ export default {
       this.buttonPlay.class = 'disable'
       synthesizer.synthesisCompleted = (_, e) => {
         synthesizer && synthesizer.close()
-        synthesizer = undefined
         const a = document.createElement('a')
         const url = window.URL.createObjectURL(new Blob([e.result.audioData]))
         a.href = url
