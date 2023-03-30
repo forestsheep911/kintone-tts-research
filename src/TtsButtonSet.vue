@@ -260,7 +260,6 @@ export default {
         this.buttonResume.class = 'disable'
       }
     },
-    // console.log(kintone.app.record.get().record.myspeech.value)
   },
 }
 </script>
