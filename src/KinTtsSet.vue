@@ -20,10 +20,11 @@
     </button>
   </div>
   <div>
-    <button :class="buttonPlay.class" :disabled="buttonPlay.disabled" @click="play">{{ buttonPlay.text }}</button>
-    <button :class="buttonPause.class" :disabled="buttonPause.disabled" @click="pause">{{ buttonPause.text }}</button>
-    <button :class="buttonResume.class" :disabled="buttonResume.disabled" @click="resume">
-      {{ buttonResume.text }}
+    <button :class="buttonPlay.active.class" :disabled="buttonPlay.active.disabled" @click="play">
+      {{ buttonPlay.active.text }}
+    </button>
+    <button :class="buttonStop.active.class" :disabled="buttonStop.active.disabled" @click="stop">
+      {{ buttonStop.active.text }}
     </button>
     <button :class="buttonDownload.class" :disabled="buttonDownload.disabled" @click="download">
       {{ buttonDownload.text }}
@@ -35,7 +36,7 @@
 import axios from 'axios'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
 
-const speechKey = ''
+const speechKey = 'ea964e382b384a95840ae2ba36ccc427'
 const speechRegion = 'eastus'
 type MsVoice = {
   id: number
@@ -69,19 +70,53 @@ export default {
   data() {
     return {
       buttonPlay: {
-        text: '▶️ Play',
-        class: 'success',
-        disabled: false,
+        play: {
+          text: '▶️ Play',
+          class: 'success',
+          disabled: false,
+          status: 'play',
+        },
+        played: {
+          text: '▶️ Play',
+          class: 'success',
+          disabled: true,
+          status: 'played',
+        },
+        pause: {
+          text: '⏸️ Pause',
+          class: 'danger',
+          disabled: false,
+          status: 'pause',
+        },
+        resume: {
+          text: '⏯️ Resume',
+          class: 'success',
+          disabled: false,
+          status: 'resume',
+        },
+        active: {
+          text: '▶️ Play',
+          class: 'success',
+          disabled: false,
+          status: 'play',
+        },
       },
-      buttonPause: {
-        text: '⏸️ Pause',
-        class: 'disable',
-        disabled: true,
-      },
-      buttonResume: {
-        text: '⏯️ Resume',
-        class: 'disable',
-        disabled: true,
+      buttonStop: {
+        enable: {
+          text: '⏹️ Stop',
+          class: 'danger',
+          disabled: false,
+        },
+        disable: {
+          text: '⏹️ Stop',
+          class: 'disable',
+          disabled: true,
+        },
+        active: {
+          text: '⏹️ Stop',
+          class: 'disable',
+          disabled: true,
+        },
       },
       buttonDownload: {
         text: '💾 Download',
@@ -115,18 +150,19 @@ export default {
         } as MsVoice,
         enWomen: {
           id: 5,
-          name: 'english: Aria',
+          name: 'English: Aria',
           cloudFullName: 'Microsoft Server Speech Text to Speech Voice (en-US, AriaNeural)',
           class: 'disable',
         } as MsVoice,
         enMan: {
           id: 6,
-          name: 'english: Guy',
+          name: 'English: Guy',
           cloudFullName: 'Microsoft Server Speech Text to Speech Voice (en-US, GuyNeural)',
           class: 'disable',
         } as MsVoice,
       },
       token: undefined as undefined | string,
+      synthesizer: {} as sdk.SpeechSynthesizer,
       player: {} as sdk.SpeakerAudioDestination,
       activeVoice: {} as MsVoice,
     }
@@ -165,73 +201,63 @@ export default {
       const speechConfig = sdk.SpeechConfig.fromAuthorizationToken(this.token, speechRegion)
       speechConfig.speechSynthesisVoiceName = this.activeVoice.cloudFullName
       speechConfig.speechSynthesisOutputFormat = sdk.SpeechSynthesisOutputFormat.Audio48Khz96KBitRateMonoMp3
-      this.player = new sdk.SpeakerAudioDestination()
-      const audioConfig = sdk.AudioConfig.fromSpeakerOutput(this.player)
-      if (type === 'play') return new sdk.SpeechSynthesizer(speechConfig, audioConfig)
-      if (type === 'download') return new sdk.SpeechSynthesizer(speechConfig, null)
-      return new sdk.SpeechSynthesizer(speechConfig, audioConfig)
+      if (type === 'play') {
+        this.player = new sdk.SpeakerAudioDestination()
+        const audioConfig = sdk.AudioConfig.fromSpeakerOutput(this.player)
+        return new sdk.SpeechSynthesizer(speechConfig, audioConfig)
+      }
+      return new sdk.SpeechSynthesizer(speechConfig, null)
     },
     async play() {
-      window.console.log('start play')
-      const synthesizer = await this.speechPrepare('play')
-      this.player.onAudioStart = () => {
-        window.console.log('Audio Start')
+      if (this.buttonPlay.active.status === 'play') {
+        // window.console.log('start play')
+        this.buttonPlay.active = this.buttonPlay.played
+        this.buttonPlay.active.status = 'played'
+        const synthesizer = await this.speechPrepare('play')
+        this.synthesizer = synthesizer
+        this.player.onAudioStart = () => {
+          // window.console.log('Audio Start')
+          this.buttonPlay.active = this.buttonPlay.pause
+          this.buttonStop.active = this.buttonStop.enable
+        }
+        this.player.onAudioEnd = () => {
+          // window.console.log('Audio End')
+          this.buttonPlay.active = this.buttonPlay.play
+          this.buttonStop.active = this.buttonStop.disable
+        }
+        synthesizer.speakTextAsync(
+          kintone.app.record.get().record.myspeech.value,
+          () => {
+            // window.console.log('synthesize completed')
+            synthesizer && synthesizer.close()
+          },
+          () => {
+            synthesizer && synthesizer.close()
+          },
+        )
+        // synthesizer.synthesisStarted = () => {}
+        // synthesizer.SynthesisCanceled = () => {}
+      } else if (this.buttonPlay.active.status === 'pause') {
+        this.player.pause()
+        this.buttonPlay.active = this.buttonPlay.resume
+      } else {
+        // status must be resume
+        this.player.resume()
+        this.buttonPlay.active = this.buttonPlay.pause
       }
-      this.player.onAudioEnd = () => {
-        window.console.log('Audio End')
-        this.buttonPlay.disabled = false
-        this.buttonPlay.class = 'success'
-        this.buttonPause.disabled = true
-        this.buttonPause.class = 'disable'
-        this.buttonResume.disabled = true
-        this.buttonResume.class = 'disable'
-        this.buttonDownload.disabled = false
-        this.buttonDownload.class = 'info'
-      }
-      function completeCb() {
-        synthesizer && synthesizer.close()
-      }
-      function errCb() {
-        synthesizer && synthesizer.close()
-      }
-      synthesizer.speakTextAsync(kintone.app.record.get().record.myspeech.value, completeCb, errCb)
-      synthesizer.synthesisStarted = () => {
-        this.buttonPause.disabled = false
-        this.buttonPause.class = 'danger'
-      }
-      synthesizer.SynthesisCanceled = () => {
-        this.buttonPause.disabled = true
-        this.buttonPause.class = 'disabe'
-        this.buttonResume.disabled = true
-        this.buttonResume.class = 'disable'
-        this.buttonDownload.disabled = false
-        this.buttonDownload.class = 'info'
-      }
-      this.buttonPlay.disabled = true
-      this.buttonPlay.class = 'disable'
     },
-    pause() {
-      this.player.pause()
-      this.buttonPause.disabled = true
-      this.buttonPause.class = 'disable'
-      this.buttonResume.disabled = false
-      this.buttonResume.class = 'success'
-    },
-    resume() {
-      this.player.resume()
-      this.buttonPause.disabled = false
-      this.buttonPause.class = 'danger'
-      this.buttonResume.disabled = true
-      this.buttonResume.class = 'disable'
+    stop() {
+      // window.console.log('Audio Force Stop')
+      this.buttonPlay.active = this.buttonPlay.play
+      this.buttonStop.active = this.buttonStop.disable
+      this.player.internalAudio.currentTime = this.player.internalAudio.duration
     },
     async download() {
-      window.console.log('start download')
+      // window.console.log('start download')
       const synthesizer = await this.speechPrepare('download')
       synthesizer.speakTextAsync(kintone.app.record.get().record.myspeech.value)
       this.buttonDownload.disabled = true
       this.buttonDownload.class = 'disable'
-      this.buttonPlay.disabled = true
-      this.buttonPlay.class = 'disable'
       synthesizer.synthesisCompleted = (_, e) => {
         synthesizer && synthesizer.close()
         const a = document.createElement('a')
@@ -246,24 +272,11 @@ export default {
         }, 0)
         this.buttonDownload.disabled = false
         this.buttonDownload.class = 'info'
-        this.buttonPlay.disabled = false
-        this.buttonPlay.class = 'success'
       }
-
-      synthesizer.SynthesisCanceled = () => {
-        window.console.log('SynthesisCanceled')
-        this.buttonDownload.disabled = false
-        this.buttonDownload.class = 'info'
-        this.buttonPause.disabled = true
-        this.buttonPause.class = 'disable'
-        this.buttonResume.disabled = true
-        this.buttonResume.class = 'disable'
-      }
+      // synthesizer.SynthesisCanceled = () => {}
     },
   },
 }
 </script>
 
-<style>
-@import 'app.css';
-</style>
+<style></style>
